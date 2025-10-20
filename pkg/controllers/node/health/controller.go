@@ -24,7 +24,6 @@ import (
 	"github.com/awslabs/operatorpkg/reasonable"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -202,22 +201,23 @@ func (c *Controller) findUnhealthyConditions(node *corev1.Node) (nc *corev1.Node
 }
 
 func (c *Controller) annotateTerminationGracePeriod(ctx context.Context, nodeClaim *v1.NodeClaim) error {
+	// keep existing if already set
 	if expirationTimeString, exists := nodeClaim.Annotations[v1.NodeClaimTerminationTimestampAnnotationKey]; exists {
-		expirationTime, err := time.Parse(time.RFC3339, expirationTimeString)
-		if err == nil && expirationTime.Before(c.clock.Now()) {
+		_, err := time.Parse(time.RFC3339, expirationTimeString)
+		if err == nil {
 			return nil
 		}
 	}
+
+	// set new annotation
 	stored := nodeClaim.DeepCopy()
 	terminationTime := c.clock.Now().Format(time.RFC3339)
 	nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{v1.NodeClaimTerminationTimestampAnnotationKey: terminationTime})
 
-	if !equality.Semantic.DeepEqual(stored, nodeClaim) {
-		if err := c.kubeClient.Patch(ctx, nodeClaim, client.MergeFrom(stored)); err != nil {
-			return err
-		}
-		log.FromContext(ctx).WithValues(v1.NodeClaimTerminationTimestampAnnotationKey, terminationTime).Info("annotated nodeclaim")
+	if err := c.kubeClient.Patch(ctx, nodeClaim, client.MergeFrom(stored)); err != nil {
+		return err
 	}
+	log.FromContext(ctx).WithValues(v1.NodeClaimTerminationTimestampAnnotationKey, terminationTime).Info("annotated nodeclaim")
 	return nil
 }
 
