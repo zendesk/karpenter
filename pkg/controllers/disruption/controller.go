@@ -40,6 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
+	"os"
 	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
@@ -216,6 +217,14 @@ func (c *Controller) disrupt(ctx context.Context, disruption Method) (bool, erro
 	if err != nil {
 		return false, fmt.Errorf("building disruption budgets, %w", err)
 	}
+
+	for np, b := range disruptionBudgetMapping {
+		prefix := os.Getenv("NODEPOOLPREFIX")
+		if strings.HasPrefix(np, prefix) {
+			fmt.Printf("disruption budget %s - %v\n", np, b)
+		}
+	}
+
 	// Determine the disruption action
 	cmds, err := disruption.ComputeCommands(ctx, disruptionBudgetMapping, candidates...)
 	if err != nil {
