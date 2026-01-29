@@ -31,7 +31,7 @@ import (
 	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 )
 
-var SingleNodeConsolidationTimeoutDuration = 3 * time.Minute
+var SingleNodeConsolidationTimeoutDuration = 10 * time.Minute
 
 const SingleNodeConsolidationType = "single"
 
