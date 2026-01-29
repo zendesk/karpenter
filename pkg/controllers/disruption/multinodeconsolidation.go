@@ -68,6 +68,7 @@ func (m *MultiNodeConsolidation) ComputeCommands(ctx context.Context, disruption
 		// If there's disruptions allowed for the candidate's nodepool,
 		// add it to the list of candidates, and decrement the budget.
 		if disruptionBudgetMapping[candidate.NodePool.Name] == 0 {
+			fmt.Println("multi no disruption left")
 			constrainedByBudgets = true
 			continue
 		}
@@ -75,6 +76,7 @@ func (m *MultiNodeConsolidation) ComputeCommands(ctx context.Context, disruption
 		// assume that it was due to budgets. If we don't filter out budgets, users who set a budget for `empty`
 		// can find their nodes disrupted here.
 		if len(candidate.reschedulablePods) == 0 {
+			fmt.Println("multi empty")
 			continue
 		}
 		// set constrainedByBudgets to true if any node was a candidate but was constrained by a budget
@@ -86,7 +88,10 @@ func (m *MultiNodeConsolidation) ComputeCommands(ctx context.Context, disruption
 	// This could be further configurable in the future.
 	maxParallel := lo.Clamp(len(disruptableCandidates), 0, 100)
 
+	fmt.Println("multi candidates", len(disruptableCandidates))
+
 	cmd, err := m.firstNConsolidationOption(ctx, disruptableCandidates, maxParallel)
+	fmt.Println("multi command", cmd.Decision())
 	if err != nil {
 		return []Command{}, err
 	}
@@ -149,6 +154,10 @@ func (m *MultiNodeConsolidation) firstNConsolidationOption(ctx context.Context, 
 			}
 			return Command{}, err
 		}
+
+		// TODO: make candidates to names and show all (can be >2)
+		fmt.Println("consolidation", candidatesToConsolidate[0].Name(), "and", candidatesToConsolidate[1].Name(), "to", cmd.Replacements)
+
 		// ensure that the action is sensical for replacements, see explanation on filterOutSameType for why this is
 		// required
 		validDecision := cmd.Decision() == DeleteDecision

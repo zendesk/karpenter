@@ -230,6 +230,7 @@ func (c *Controller) disrupt(ctx context.Context, disruption Method) (bool, erro
 	if err != nil {
 		return false, fmt.Errorf("computing disruption decision, %w", err)
 	}
+	fmt.Println("disruption decision:", cmds)
 	cmds = lo.Filter(cmds, func(c Command, _ int) bool { return c.Decision() != NoOpDecision })
 	if len(cmds) == 0 {
 		return false, nil
