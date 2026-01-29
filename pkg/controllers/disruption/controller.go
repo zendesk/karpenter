@@ -40,7 +40,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"os"
-	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
@@ -144,21 +143,21 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	// Karpenter taints nodes with a karpenter.sh/disruption taint as part of the disruption process while it progresses in memory.
 	// If Karpenter restarts or fails with an error during a disruption action, some nodes can be left tainted.
 	// Idempotently remove this taint from candidates that are not in the orchestration queue before continuing.
-	outdatedNodes := lo.Reject(c.cluster.DeepCopyNodes(), func(s *state.StateNode, _ int) bool {
-		return c.queue.HasAny(s.ProviderID()) || s.MarkedForDeletion()
-	})
+	//outdatedNodes := lo.Reject(c.cluster.DeepCopyNodes(), func(s *state.StateNode, _ int) bool {
+	//	return c.queue.HasAny(s.ProviderID()) || s.MarkedForDeletion()
+	//})
 	//if err := state.RequireNoScheduleTaint(ctx, c.kubeClient, false, outdatedNodes...); err != nil {
 	//	if errors.IsConflict(err) {
 	//		return reconciler.Result{Requeue: true}, nil
 	//	}
 	//	return reconciler.Result{}, serrors.Wrap(fmt.Errorf("removing taint from nodes, %w", err), "taint", pretty.Taint(v1.DisruptedNoScheduleTaint))
 	//}
-	if err := state.ClearNodeClaimsCondition(ctx, c.kubeClient, v1.ConditionTypeDisruptionReason, outdatedNodes...); err != nil {
-		if errors.IsConflict(err) {
-			return reconciler.Result{Requeue: true}, nil
-		}
-		return reconciler.Result{}, serrors.Wrap(fmt.Errorf("removing condition from nodeclaims, %w", err), "condition", v1.ConditionTypeDisruptionReason)
-	}
+	//if err := state.ClearNodeClaimsCondition(ctx, c.kubeClient, v1.ConditionTypeDisruptionReason, outdatedNodes...); err != nil {
+	//	if errors.IsConflict(err) {
+	//		return reconciler.Result{Requeue: true}, nil
+	//	}
+	//	return reconciler.Result{}, serrors.Wrap(fmt.Errorf("removing condition from nodeclaims, %w", err), "condition", v1.ConditionTypeDisruptionReason)
+	//}
 
 	// Attempt different disruption methods. We'll only let one method perform an action
 	for _, m := range c.methods {

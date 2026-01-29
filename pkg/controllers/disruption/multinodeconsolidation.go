@@ -155,8 +155,8 @@ func (m *MultiNodeConsolidation) firstNConsolidationOption(ctx context.Context, 
 			return Command{}, err
 		}
 
-		// TODO: make candidates to names and show all (can be >2)
-		fmt.Println("consolidation", candidatesToConsolidate[0].Name(), "and", candidatesToConsolidate[1].Name(), "to", cmd.Replacements)
+		canlist := lo.Map(candidatesToConsolidate, func(c *Candidate, _ int) string { return c.Name() })
+		fmt.Println("consolidation", canlist, "to", len(cmd.Replacements), "nodes via", cmd.Decision())
 
 		// ensure that the action is sensical for replacements, see explanation on filterOutSameType for why this is
 		// required
