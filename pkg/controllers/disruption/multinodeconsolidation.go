@@ -32,7 +32,7 @@ import (
 	scheduler "sigs.k8s.io/karpenter/pkg/scheduling"
 )
 
-const MultiNodeConsolidationTimeoutDuration = 1 * time.Minute
+const MultiNodeConsolidationTimeoutDuration = 10 * time.Minute
 const MultiNodeConsolidationType = "multi"
 
 type MultiNodeConsolidation struct {
