@@ -48,6 +48,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 	"sigs.k8s.io/karpenter/pkg/utils/pod"
 	"sigs.k8s.io/karpenter/pkg/utils/resources"
+	"strings"
 )
 
 type ReservedOfferingMode int
@@ -510,6 +511,7 @@ func (s *Scheduler) add(ctx context.Context, pod *corev1.Pod) error {
 	if len(s.nodeClaimTemplates) == 0 {
 		return fmt.Errorf("nodepool requirements filtered out all available instance types")
 	}
+
 	err := s.addToNewNodeClaim(ctx, pod)
 	if err == nil {
 		return nil
@@ -579,6 +581,15 @@ func (s *Scheduler) addToInflightNode(ctx context.Context, pod *corev1.Pod) erro
 			idx = i
 			return false
 		}
+
+		itypes := lo.Map(updatedInstanceTypes, func(c *cloudprovider.InstanceType, _ int) string { return c.Name })
+		fmt.Printf(
+			"addToInflightNode unable to add pod %s/%s to existing %s -- %v\n",
+			pod.Namespace, pod.Name,
+			strings.Split(err.Error(), "(")[0], // errors without all the detail spam
+			itypes,
+		)
+
 		return true
 	})
 	if inflightNodeClaim != nil {
