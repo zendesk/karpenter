@@ -30,6 +30,7 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 
+	"os"
 	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	disruptionevents "sigs.k8s.io/karpenter/pkg/controllers/disruption/events"
@@ -119,7 +120,14 @@ func (c *consolidation) ShouldDisrupt(_ context.Context, cn *Candidate) bool {
 		return false
 	}
 	// return true if consolidatable
-	return cn.NodeClaim.StatusConditions().Get(v1.ConditionTypeConsolidatable).IsTrue()
+	can := cn.NodeClaim.StatusConditions().Get(v1.ConditionTypeConsolidatable).IsTrue()
+	if os.Getenv("CONSOLIDATABLE") == "ignore" {
+		can = true
+	}
+	if !can {
+		fmt.Println(cn.NodeClaim.Name, "is not consolidable")
+	}
+	return can
 }
 
 // sortCandidates sorts candidates by disruption cost (where the lowest disruption cost is first) and returns the result
@@ -166,7 +174,8 @@ func (c *consolidation) computeConsolidation(ctx context.Context, candidates ...
 
 	// we're not going to turn a single node into multiple candidates
 	if len(results.NewNodeClaims) != 1 {
-		fmt.Printf("scheduling aborting since it tried to create %v new nodes from %v existing nodes\n", len(results.NewNodeClaims), len(results.ExistingNodes))
+		types := lo.Map(candidates, func(c *Candidate, _ int) string { return c.Node.Labels[corev1.LabelInstanceTypeStable] })
+		fmt.Printf("scheduling aborting since it tried to create %v new nodes from %v existing nodes %v\n", len(results.NewNodeClaims), len(candidates), types)
 		if len(candidates) == 1 {
 			c.recorder.Publish(disruptionevents.Unconsolidatable(candidates[0].Node, candidates[0].NodeClaim, fmt.Sprintf("Can't remove without creating %d candidates", len(results.NewNodeClaims)))...)
 		}
@@ -207,7 +216,7 @@ func (c *consolidation) computeConsolidation(ctx context.Context, candidates ...
 		return Command{}, nil
 	}
 	if len(results.NewNodeClaims[0].InstanceTypeOptions) == 0 {
-		fmt.Println("scheduling no options")
+		fmt.Println("scheduling no options with", len(results.NewNodeClaims), "new nodes")
 		if len(candidates) == 1 {
 			c.recorder.Publish(disruptionevents.Unconsolidatable(candidates[0].Node, candidates[0].NodeClaim, "Can't replace with a cheaper node")...)
 		}
