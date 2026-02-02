@@ -174,8 +174,16 @@ func (c *consolidation) computeConsolidation(ctx context.Context, candidates ...
 
 	// we're not going to turn a single node into multiple candidates
 	if len(results.NewNodeClaims) != 1 {
-		types := lo.Map(candidates, func(c *Candidate, _ int) string { return c.Node.Labels[corev1.LabelInstanceTypeStable] })
-		fmt.Printf("scheduling aborting since it tried to create %v new nodes from %v existing nodes %v\n", len(results.NewNodeClaims), len(candidates), types)
+		ctypes := lo.Map(candidates, func(c *Candidate, _ int) string { return c.Node.Labels[corev1.LabelInstanceTypeStable] })
+		ntypes := lo.Map(results.NewNodeClaims, func(c *pscheduling.NodeClaim, _ int) []string {
+			for k, r := range c.Requirements {
+				if k == "node.kubernetes.io/instance-type" {
+					return r.Values()
+				}
+			}
+			return nil
+		})
+		fmt.Printf("scheduling aborting since it tried to create %v new nodes (%v) from %v existing nodes (%v)\n", len(results.NewNodeClaims), ntypes, len(candidates), ctypes)
 		if len(candidates) == 1 {
 			c.recorder.Publish(disruptionevents.Unconsolidatable(candidates[0].Node, candidates[0].NodeClaim, fmt.Sprintf("Can't remove without creating %d candidates", len(results.NewNodeClaims)))...)
 		}
