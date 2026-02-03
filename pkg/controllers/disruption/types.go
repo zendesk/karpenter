@@ -43,7 +43,6 @@ import (
 	disruptionutils "sigs.k8s.io/karpenter/pkg/utils/disruption"
 	"sigs.k8s.io/karpenter/pkg/utils/pdb"
 	"sigs.k8s.io/karpenter/pkg/utils/pod"
-	"strings"
 )
 
 const (
