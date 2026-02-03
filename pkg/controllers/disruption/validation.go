@@ -322,8 +322,7 @@ func (v *validation) validateCommand(ctx context.Context, cmd Command, candidate
 		return NewSchedulingValidationError(fmt.Errorf("scheduling simulation produced new results"))
 	}
 
-	// we need more than one replacement node which is never valid currently (all of our node replacement is m->1, never m->n)
-	if len(results.NewNodeClaims) > 1 {
+	if len(results.NewNodeClaims) > len(candidates) {
 		return NewSchedulingValidationError(fmt.Errorf("scheduling simulation produced new results"))
 	}
 
