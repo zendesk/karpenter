@@ -211,7 +211,7 @@ func (c *Controller) disrupt(ctx context.Context, disruption Method) (bool, erro
 	for np, b := range disruptionBudgetMapping {
 		prefix := os.Getenv("NODEPOOLPREFIX")
 		if strings.HasPrefix(np, prefix) {
-			fmt.Printf("disruption budget %s - %v\n", np, b)
+			fmt.Printf("nodepool disruption budget %s - nodes:%v\n", np, b)
 		}
 	}
 
