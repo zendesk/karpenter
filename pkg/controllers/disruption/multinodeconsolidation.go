@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	corev1 "k8s.io/api/core/v1"
 	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	scheduler "sigs.k8s.io/karpenter/pkg/scheduling"
 )
@@ -156,8 +157,16 @@ func (m *MultiNodeConsolidation) firstNConsolidationOption(ctx context.Context, 
 			return Command{}, err
 		}
 
-		canlist := lo.Map(candidatesToConsolidate, func(c *Candidate, _ int) string { return c.Name() })
-		fmt.Println("consolidation", canlist, "to", len(cmd.Replacements), "nodes via", cmd.Decision())
+		canlist := lo.Map(candidatesToConsolidate, func(c *Candidate, _ int) string { return c.Name() + ":" + c.Labels()[corev1.LabelInstanceTypeStable] })
+		ntypes := lo.Map(cmd.Replacements, func(c *Replacement, _ int) []string {
+			for k, r := range c.Requirements {
+				if k == "node.kubernetes.io/instance-type" {
+					return r.Values()
+				}
+			}
+			return nil
+		})
+		fmt.Println("consolidation", len(canlist), "->", len(cmd.Replacements), canlist, "to", ntypes, "nodes via", cmd.Decision())
 
 		// ensure that the action is sensical for replacements, see explanation on filterOutSameType for why this is
 		// required
@@ -169,6 +178,7 @@ func (m *MultiNodeConsolidation) firstNConsolidationOption(ctx context.Context, 
 				validDecision = true
 			}
 		}
+		fmt.Println("consolidation decision is valid:", validDecision)
 		if validDecision {
 			// We can consolidate NodeClaims [0,mid]
 			lastSavedCommand = cmd
