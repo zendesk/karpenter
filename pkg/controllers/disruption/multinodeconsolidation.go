@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	corev1 "k8s.io/api/core/v1"
 	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	scheduler "sigs.k8s.io/karpenter/pkg/scheduling"
 )
@@ -51,8 +52,11 @@ func NewMultiNodeConsolidation(c consolidation, opts ...option.Function[MethodOp
 // nolint:gocyclo
 func (m *MultiNodeConsolidation) ComputeCommands(ctx context.Context, disruptionBudgetMapping map[string]int, candidates ...*Candidate) ([]Command, error) {
 	if m.IsConsolidated() {
+		log.FromContext(ctx).Info("HACK ComputeCommands stopped by IsConsolidated")
 		return []Command{}, nil
+
 	}
+	log.FromContext(ctx).Info("HACK ComputeCommands candidates", "candidates", len(candidates))
 	candidates = m.sortCandidates(candidates)
 
 	// In order, filter out all candidates that would violate the budget.
@@ -68,6 +72,7 @@ func (m *MultiNodeConsolidation) ComputeCommands(ctx context.Context, disruption
 		// If there's disruptions allowed for the candidate's nodepool,
 		// add it to the list of candidates, and decrement the budget.
 		if disruptionBudgetMapping[candidate.NodePool.Name] == 0 {
+			log.FromContext(ctx).Info("HACK multi no disruption left")
 			constrainedByBudgets = true
 			continue
 		}
@@ -149,6 +154,19 @@ func (m *MultiNodeConsolidation) firstNConsolidationOption(ctx context.Context, 
 			}
 			return Command{}, err
 		}
+
+		canlist := lo.Map(candidatesToConsolidate, func(c *Candidate, _ int) string { return c.Name() + ":" + c.Labels()[corev1.LabelInstanceTypeStable] })
+		ntypes := lo.Map(cmd.Replacements, func(c *Replacement, _ int) []string {
+			for k, r := range c.Requirements {
+				if k == "node.kubernetes.io/instance-type" {
+					return r.Values()
+				}
+			}
+			return nil
+		})
+
+		log.FromContext(ctx).Info("HACK consolidation list", "candidates", len(canlist), "replacements", len(cmd.Replacements), "canlist", canlist, "to", ntypes, "nodes-via", cmd.Decision())
+
 		// ensure that the action is sensical for replacements, see explanation on filterOutSameType for why this is
 		// required
 		validDecision := cmd.Decision() == DeleteDecision

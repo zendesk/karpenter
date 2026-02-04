@@ -125,6 +125,8 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	ctx = injection.WithControllerName(ctx, c.Name())
 
+	log.FromContext(ctx).Info("HACK starting Reconcile")
+
 	// this won't catch if the reconciler loop hangs forever, but it will catch other issues
 	c.logAbnormalRuns(ctx)
 	defer c.logAbnormalRuns(ctx)
@@ -138,6 +140,7 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	// with making any scheduling decision off of our state nodes. Otherwise, we have the potential to make
 	// a scheduling decision based on a smaller subset of nodes in our cluster state than actually exist.
 	if !c.cluster.Synced(ctx) {
+		log.FromContext(ctx).Info("HACK not synced")
 		return reconciler.Result{RequeueAfter: time.Second}, nil
 	}
 
@@ -162,8 +165,11 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 
 	// Attempt different disruption methods. We'll only let one method perform an action
 	for _, m := range c.methods {
+		log.FromContext(ctx).Info("HACK method", "method", m.ConsolidationType())
+		startTime := time.Now()
 		c.recordRun(fmt.Sprintf("%T", m))
 		success, err := c.disrupt(ctx, m)
+		log.FromContext(ctx).Info("HACK disrupt result", "success", success, "err", err, "duration", time.Since(startTime), "method", m.ConsolidationType())
 		if err != nil {
 			if errors.IsConflict(err) {
 				return reconciler.Result{Requeue: true}, nil

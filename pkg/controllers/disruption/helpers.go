@@ -43,6 +43,7 @@ import (
 	nodeutils "sigs.k8s.io/karpenter/pkg/utils/node"
 	nodepoolutils "sigs.k8s.io/karpenter/pkg/utils/nodepool"
 	"sigs.k8s.io/karpenter/pkg/utils/pdb"
+	"slices"
 )
 
 var errCandidateDeleting = fmt.Errorf("candidate is deleting")
@@ -181,12 +182,22 @@ func GetCandidates(ctx context.Context, cluster *state.Cluster, kubeClient clien
 	if err != nil {
 		return nil, fmt.Errorf("tracking PodDisruptionBudgets, %w", err)
 	}
-	candidates := lo.FilterMap(cluster.DeepCopyNodes(), func(n *state.StateNode, _ int) (*Candidate, bool) {
+	nodes := cluster.DeepCopyNodes()
+	candidates := lo.FilterMap(nodes, func(n *state.StateNode, _ int) (*Candidate, bool) {
 		cn, e := NewCandidate(ctx, kubeClient, recorder, clk, n, pdbs, nodePoolMap, nodePoolToInstanceTypesMap, queue, disruptionClass)
+		ignored := []string{"control-plane", "api", "etcd", "etcd-events"}
+		if e != nil && !slices.Contains(ignored, n.Labels()["node-type"]) {
+			log.FromContext(ctx).Info(fmt.Sprintf("HACK GetCandidates rejected node: %s -- %s (%s)", n.Name(), e.Error(), n.Labels()["node-type"]))
+		}
 		return cn, e == nil
 	})
+
 	// Filter only the valid candidates that we should disrupt
-	return lo.Filter(candidates, func(c *Candidate, _ int) bool { return shouldDisrupt(ctx, c) }), nil
+	final := lo.Filter(candidates, func(c *Candidate, _ int) bool { return shouldDisrupt(ctx, c) })
+
+	log.FromContext(ctx).Info(fmt.Sprintf("HACK GetCandidates result: %d -> %d -> %d\n", len(nodes), len(candidates), len(final)))
+
+	return final, nil
 }
 
 // BuildNodePoolMap builds a provName -> nodePool map and a provName -> instanceName -> instance type map

@@ -30,6 +30,7 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	disruptionevents "sigs.k8s.io/karpenter/pkg/controllers/disruption/events"
@@ -167,6 +168,17 @@ func (c *consolidation) computeConsolidation(ctx context.Context, candidates ...
 		if len(candidates) == 1 {
 			c.recorder.Publish(disruptionevents.Unconsolidatable(candidates[0].Node, candidates[0].NodeClaim, fmt.Sprintf("Can't remove without creating %d candidates", len(results.NewNodeClaims)))...)
 		}
+		ctypes := lo.Map(candidates, func(c *Candidate, _ int) string { return c.Node.Labels[corev1.LabelInstanceTypeStable] })
+		ntypes := lo.Map(results.NewNodeClaims, func(c *pscheduling.NodeClaim, _ int) []string {
+			for k, r := range c.Requirements {
+				if k == "node.kubernetes.io/instance-type" {
+					return r.Values()
+				}
+			}
+			return nil
+		})
+		log.FromContext(ctx).Info(fmt.Sprintf("HACK scheduling aborting since it tried to create %v new nodes (%v) from %v existing nodes (%v)\n", len(results.NewNodeClaims), ntypes, len(candidates), ctypes))
+
 		return Command{}, nil
 	}
 
@@ -196,6 +208,7 @@ func (c *consolidation) computeConsolidation(ctx context.Context, candidates ...
 	// causing churns and landing onto lower available spot instance ultimately resulting in higher interruptions.
 	results.NewNodeClaims[0], err = results.NewNodeClaims[0].RemoveInstanceTypeOptionsByPriceAndMinValues(results.NewNodeClaims[0].Requirements, candidatePrice)
 	if err != nil {
+		log.FromContext(ctx).Info("HACK scheduling err", "err", err.Error())
 		if len(candidates) == 1 {
 			c.recorder.Publish(disruptionevents.Unconsolidatable(candidates[0].Node, candidates[0].NodeClaim, fmt.Sprintf("Filtering by price: %v", err))...)
 		}
