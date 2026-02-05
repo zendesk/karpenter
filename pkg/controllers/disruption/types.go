@@ -132,12 +132,25 @@ func NewCandidate(ctx context.Context, kubeClient client.Client, recorder events
 		}
 	}
 	return &Candidate{
-		StateNode:         node,
-		instanceType:      instanceType,
-		NodePool:          nodePool,
-		capacityType:      node.Labels()[v1.CapacityTypeLabelKey],
-		zone:              node.Labels()[corev1.LabelTopologyZone],
-		reschedulablePods: lo.Filter(pods, func(p *corev1.Pod, _ int) bool { return pod.IsReschedulable(p) }),
+		StateNode:    node,
+		instanceType: instanceType,
+		NodePool:     nodePool,
+		capacityType: node.Labels()[v1.CapacityTypeLabelKey],
+		zone:         node.Labels()[corev1.LabelTopologyZone],
+		reschedulablePods: lo.Filter(pods, func(p *corev1.Pod, _ int) bool {
+			itis := pod.IsReschedulable(p)
+			// debug why pod could not be rescheduled
+			//if !itis {
+			//	mem := resources.RequestsForPods(p)[corev1.ResourceMemory]
+			//	fmt.Println("NewCandidate ignoring pod", p.Name, p.Namespace,
+			//		"del", pod.IsActive(p) || (pod.IsOwnedByStatefulSet(p) && pod.IsTerminating(p)),
+			//		"!ds", !pod.IsOwnedByDaemonSet(p),
+			//		"!node", !pod.IsOwnedByNode(p),
+			//		mem.String(),
+			//	)
+			//}
+			return itis
+		}),
 		// We get the disruption cost from all pods in the candidate, not just the reschedulable pods
 		DisruptionCost: disruptionutils.ReschedulingCost(ctx, pods) * disruptionutils.LifetimeRemaining(clk, nodePool, node.NodeClaim),
 	}, nil
