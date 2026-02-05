@@ -167,8 +167,11 @@ func (m *MultiNodeConsolidation) firstNConsolidationOption(ctx context.Context, 
 			return nil
 		})
 		fmt.Println("consolidation", len(canlist), "->", len(cmd.Replacements), canlist, "to", ntypes, "nodes via", cmd.Decision())
-		fmt.Println("consolidation ds", cmd.Replacements[0].NodeClaimTemplate.Spec.Resources.Requests)
-		fmt.Println("consolidation pods", cmd.Replacements[0].Pods)
+		for i, r := range cmd.Replacements {
+			dsMemory := r.NodeClaimTemplate.Spec.Resources.Requests[corev1.ResourceMemory]
+			dsCPU := r.NodeClaimTemplate.Spec.Resources.Requests[corev1.ResourceCPU]
+			fmt.Println("consolidation requests (pods+ds) index", i, "memory", dsMemory.String(), "cpu", dsCPU.String())
+		}
 
 		// ensure that the action is sensical for replacements, see explanation on filterOutSameType for why this is
 		// required

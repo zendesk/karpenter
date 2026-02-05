@@ -82,7 +82,12 @@ func SimulateScheduling(ctx context.Context, kubeClient client.Client, cluster *
 	}
 	for _, n := range candidates {
 		currentlyReschedulablePods := lo.Filter(n.reschedulablePods, func(p *corev1.Pod, _ int) bool {
-			return pdbs.IsCurrentlyReschedulable(p)
+			itis := pdbs.IsCurrentlyReschedulable(p)
+			// debug why pod could not be rescheduled
+			//if !itis {
+			//	fmt.Println("SimulateScheduling ignoring pod", p.Name, p.Namespace)
+			//}
+			return itis
 		})
 		pods = append(pods, currentlyReschedulablePods...)
 	}
