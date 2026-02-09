@@ -31,6 +31,7 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/operator/options"
 
+	"os"
 	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	disruptionevents "sigs.k8s.io/karpenter/pkg/controllers/disruption/events"
@@ -212,6 +213,12 @@ func GetCandidates(ctx context.Context, cluster *state.Cluster, kubeClient clien
 	nodes := cluster.DeepCopyNodes()
 	fmt.Println("nodes:", len(nodes))
 	candidates := lo.FilterMap(nodes, func(n *state.StateNode, _ int) (*Candidate, bool) {
+		if prefix := os.Getenv("NODEPOOLPREFIX"); prefix != "" {
+			if !strings.HasPrefix(n.Labels()["karpenter.sh/nodepool"], prefix) {
+				return nil, false
+			}
+		}
+
 		cn, e := NewCandidate(ctx, kubeClient, recorder, clk, n, pdbs, nodePoolMap, nodePoolToInstanceTypesMap, queue, disruptionClass)
 		if e != nil && !strings.Contains(e.Error(), "prefix") {
 			fmt.Printf("rejected candidate node: %s -- %s\n", n.Name(), e.Error())
