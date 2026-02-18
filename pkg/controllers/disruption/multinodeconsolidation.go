@@ -120,18 +120,21 @@ func (m *MultiNodeConsolidation) firstNConsolidationOption(ctx context.Context, 
 	if len(candidates) < 2 {
 		return Command{}, nil
 	}
-	min := 1
-	if len(candidates) <= max {
-		max = len(candidates) - 1
+
+	// Try sequentially: 2, 3, 4 candidates (stop at 4 since success rate is low beyond that)
+	maxCandidates := 4
+	if len(candidates)-1 < maxCandidates {
+		maxCandidates = len(candidates) - 1
 	}
 
 	lastSavedCommand := Command{}
 	// Set a timeout
 	timeoutCtx, cancel := context.WithTimeout(ctx, MultiNodeConsolidationTimeoutDuration)
 	defer cancel()
-	for min <= max {
-		mid := (min + max) / 2
-		candidatesToConsolidate := candidates[0 : mid+1]
+
+	// Try n=2, n=3, n=4
+	for n := 2; n <= maxCandidates; n++ {
+		candidatesToConsolidate := candidates[0:n]
 
 		// Pass the timeout context to ensure sub-operations can be canceled
 		cmd, err := m.computeConsolidation(timeoutCtx, candidatesToConsolidate...)
@@ -140,7 +143,7 @@ func (m *MultiNodeConsolidation) firstNConsolidationOption(ctx context.Context, 
 			if errors.Is(err, context.DeadlineExceeded) {
 				ConsolidationTimeoutsTotal.Inc(map[string]string{ConsolidationTypeLabel: m.ConsolidationType()})
 				if lastSavedCommand.Candidates == nil {
-					log.FromContext(ctx).V(1).Info("failed to find a multi-node consolidation after timeout", "last_batch_size", (min+max)/2)
+					log.FromContext(ctx).V(1).Info("failed to find a multi-node consolidation after timeout", "last_batch_size", n)
 					return Command{}, nil
 				}
 				log.FromContext(ctx).V(1).WithValues(lastSavedCommand.LogValues()...).Info("stopping multi-node consolidation after timeout, returning last valid command")
@@ -160,11 +163,9 @@ func (m *MultiNodeConsolidation) firstNConsolidationOption(ctx context.Context, 
 			}
 		}
 		if validDecision {
-			// We can consolidate NodeClaims [0,mid]
+			// We can consolidate NodeClaims [0,n]
 			lastSavedCommand = cmd
-			min = mid + 1
-		} else {
-			max = mid - 1
+			// Continue trying larger batches to find the best consolidation
 		}
 	}
 	return lastSavedCommand, nil
