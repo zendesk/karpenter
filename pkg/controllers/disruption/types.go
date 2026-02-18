@@ -236,6 +236,19 @@ func (c Command) String() string {
 	return fmt.Sprintf("%s/%s: %s: [%s] (savings: $%.2f)", c.Reason(), c.ID, c.Decision(), sources, c.EstimatedSavings())
 }
 
+func (c Command) Debug() {
+	canlist := lo.Map(c.Candidates, func(c *Candidate, _ int) string { return c.Name() + ":" + c.Labels()[corev1.LabelInstanceTypeStable] })
+	ntypes := lo.Map(c.Replacements, func(c *Replacement, _ int) []string {
+		for k, r := range c.Requirements {
+			if k == "node.kubernetes.io/instance-type" {
+				return r.Values()
+			}
+		}
+		return nil
+	})
+	fmt.Println("consolidation cmd", len(canlist), "->", len(c.Replacements), canlist, "to", ntypes, "nodes via", c.Decision())
+}
+
 // StringForNode returns a string representation of the command from the perspective of a single source candidate node.
 // For single-node commands, returns the full command string. For multi-node commands, returns a per-node
 // string with context to avoid listing all nodes.

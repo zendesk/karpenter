@@ -157,16 +157,7 @@ func (m *MultiNodeConsolidation) firstNConsolidationOption(ctx context.Context, 
 			return Command{}, err
 		}
 
-		canlist := lo.Map(candidatesToConsolidate, func(c *Candidate, _ int) string { return c.Name() + ":" + c.Labels()[corev1.LabelInstanceTypeStable] })
-		ntypes := lo.Map(cmd.Replacements, func(c *Replacement, _ int) []string {
-			for k, r := range c.Requirements {
-				if k == "node.kubernetes.io/instance-type" {
-					return r.Values()
-				}
-			}
-			return nil
-		})
-		fmt.Println("consolidation", len(canlist), "->", len(cmd.Replacements), canlist, "to", ntypes, "nodes via", cmd.Decision())
+		cmd.Debug()
 		for i, r := range cmd.Replacements {
 			dsMemory := r.NodeClaimTemplate.Spec.Resources.Requests[corev1.ResourceMemory]
 			dsCPU := r.NodeClaimTemplate.Spec.Resources.Requests[corev1.ResourceCPU]

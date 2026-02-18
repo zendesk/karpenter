@@ -228,7 +228,11 @@ func (c *Controller) disrupt(ctx context.Context, disruption Method) (bool, erro
 	}
 
 	errs := make([]error, len(cmds))
-	fmt.Printf("DISRUPING %v\n", cmds)
+
+	for _, cmd := range cmds {
+		cmd.Debug()
+	}
+
 	//workqueue.ParallelizeUntil(ctx, len(cmds), len(cmds), func(i int) {
 	//	cmd := cmds[i]
 	//
