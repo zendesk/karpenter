@@ -32,6 +32,7 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	disruptionevents "sigs.k8s.io/karpenter/pkg/controllers/disruption/events"
@@ -41,6 +42,7 @@ import (
 	disruptionutils "sigs.k8s.io/karpenter/pkg/utils/disruption"
 	"sigs.k8s.io/karpenter/pkg/utils/pdb"
 	"sigs.k8s.io/karpenter/pkg/utils/pod"
+	"strings"
 )
 
 const (
@@ -178,6 +180,34 @@ func (c Command) Decision() Decision {
 	default:
 		return NoOpDecision
 	}
+}
+
+// Debug logs what instances the command tries to take down and what it wants to replace them with
+func (c Command) Debug(ctx context.Context) {
+	canlist := lo.Map(c.Candidates, func(c *Candidate, _ int) string {
+		return fmt.Sprintf(
+			"%s:%s:%s:%s",
+			c.Name(),
+			c.Labels()["node-type"],
+			c.Labels()[corev1.LabelTopologyZone],
+			c.Labels()[corev1.LabelInstanceTypeStable],
+		)
+	})
+	ntypes := strings.Join(lo.FlatMap(c.Replacements, func(c *Replacement, _ int) []string {
+		for k, r := range c.Requirements {
+			if k == "node.kubernetes.io/instance-type" {
+				return r.Values()
+			}
+		}
+		return nil
+	}), ",")
+	log.FromContext(ctx).Info(
+		"executing consolidation",
+		"summary", fmt.Sprintf("%d -> %d", len(canlist), len(c.Replacements)),
+		"candidates", canlist,
+		"replacements", ntypes,
+		"method", c.Method.Reason(),
+	)
 }
 
 func (c Command) LogValues() []any {
