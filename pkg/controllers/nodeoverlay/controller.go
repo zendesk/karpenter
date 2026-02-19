@@ -105,13 +105,13 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 		return np.Name
 	})...)
 
-	err, requeue := c.updateOverlayStatuses(ctx, overlayList.Items, overlaysWithConflict, overlayWithRuntimeValidationFailure)
-	if requeue {
-		return reconcile.Result{Requeue: true}, nil
-	}
-	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("updating nodeoverlay statuses, %w", err)
-	}
+	//err, requeue := c.updateOverlayStatuses(ctx, overlayList.Items, overlaysWithConflict, overlayWithRuntimeValidationFailure)
+	//if requeue {
+	//	return reconcile.Result{Requeue: true}, nil
+	//}
+	//if err != nil {
+	//	return reconcile.Result{}, fmt.Errorf("updating nodeoverlay statuses, %w", err)
+	//}
 
 	c.instanceTypeStore.UpdateStore(temporaryStore)
 	c.clusterState.MarkUnconsolidated()
