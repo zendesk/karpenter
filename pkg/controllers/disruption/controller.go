@@ -210,6 +210,10 @@ func (c *Controller) disrupt(ctx context.Context, disruption Method) (bool, erro
 		return false, nil
 	}
 
+	for _, cmd := range cmds {
+		cmd.Debug(ctx)
+	}
+
 	errs := make([]error, len(cmds))
 	workqueue.ParallelizeUntil(ctx, len(cmds), len(cmds), func(i int) {
 		cmd := cmds[i]
