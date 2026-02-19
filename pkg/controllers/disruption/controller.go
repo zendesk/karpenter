@@ -161,9 +161,11 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 
 	// Attempt different disruption methods. We'll only let one method perform an action
 	for _, m := range c.methods {
-		// we only care about that one atm
-		if m.ConsolidationType() != "multi" {
-			continue
+		// allow focussing on a single method
+		if picked := os.Getenv("CMETHOD"); picked != "" {
+			if m.ConsolidationType() != picked {
+				continue
+			}
 		}
 
 		fmt.Printf("running method %s - %s - %s\n", m.Class(), m.Reason(), m.ConsolidationType())
