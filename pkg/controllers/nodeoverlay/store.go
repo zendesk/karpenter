@@ -90,6 +90,12 @@ func (s *InstanceTypeStore) Apply(nodePoolName string, it *cloudprovider.Instanc
 	return updatedIt, nil
 }
 
+// hack to allow simulator to make overlays as evaluated
+func (s *InstanceTypeStore) EvaluatedNodePools() *sets.Set[string] {
+	internalStore := lo.FromPtr(s.store.Load())
+	return &internalStore.evaluatedNodePools
+}
+
 // InstanceTypeStore manages instance type updates for node pools.
 // It maintains a nested mapping structure where:
 //   - First level:  nodePoolName -> map of instance updates
