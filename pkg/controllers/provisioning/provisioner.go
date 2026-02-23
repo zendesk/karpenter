@@ -34,6 +34,7 @@ import (
 	"go.uber.org/multierr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
@@ -141,6 +142,40 @@ func (p *Provisioner) Reconcile(ctx context.Context) (result reconciler.Result, 
 	if len(results.NewNodeClaims) == 0 {
 		return reconciler.Result{RequeueAfter: singleton.RequeueImmediately}, nil
 	}
+
+	// Filter reserved offerings for node-arm pools with high memory:cpu ratio
+	for _, nc := range results.NewNodeClaims {
+		if !strings.HasPrefix(nc.NodePoolName, "node-arm") {
+			continue
+		}
+
+		// Calculate total memory and CPU requested by pods
+		var totalMemory, totalCPU resource.Quantity
+		for _, pod := range nc.Pods {
+			for _, container := range pod.Spec.Containers {
+				if mem, ok := container.Resources.Requests[corev1.ResourceMemory]; ok {
+					totalMemory.Add(mem)
+				}
+				if cpu, ok := container.Resources.Requests[corev1.ResourceCPU]; ok {
+					totalCPU.Add(cpu)
+				}
+			}
+		}
+
+		// Check if memory:cpu ratio is above 4:1
+		if totalCPU.IsZero() {
+			continue
+		}
+
+		memoryGB := float64(totalMemory.Value()) / (1024 * 1024 * 1024)
+		cpuCores := float64(totalCPU.MilliValue()) / 1000.0
+		ratio := memoryGB / cpuCores
+
+		if ratio > 4.0 {
+			nc.RemoveReservedOfferingsByInstanceTypePrefix([]string{"c", "m"})
+		}
+	}
+
 	if _, err = p.CreateNodeClaims(ctx, results.NewNodeClaims, WithReason(metrics.ProvisionedReason), RecordPodNomination); err != nil {
 		return reconciler.Result{}, err
 	}
