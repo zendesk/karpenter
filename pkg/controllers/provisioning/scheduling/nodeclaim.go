@@ -257,29 +257,6 @@ func (n *NodeClaim) offeringsToReserve(
 	return reservedOfferings, nil
 }
 
-// RemoveReservedOfferingsByInstanceTypePrefix removes reserved offerings that have instance types
-// matching the given prefixes
-func (n *NodeClaim) RemoveReservedOfferingsByInstanceTypePrefix(prefixes []string) {
-	filtered := lo.Filter(n.reservedOfferings, func(offering *cloudprovider.Offering, _ int) bool {
-		instanceTypeReq := offering.Requirements.Get(corev1.LabelInstanceTypeStable)
-		if instanceTypeReq == nil {
-			// No instance type requirement, keep the offering
-			return true
-		}
-
-		// Keep the offering if none of its instance types match the excluded prefixes
-		return !lo.SomeBy(instanceTypeReq.Values(), func(instType string) bool {
-			return lo.SomeBy(prefixes, func(prefix string) bool {
-				return strings.HasPrefix(instType, prefix)
-			})
-		})
-	})
-
-	// Release the offerings we're removing
-	n.releaseReservedOfferings(n.reservedOfferings, filtered)
-	n.reservedOfferings = filtered
-}
-
 // FinalizeScheduling is called once all scheduling has completed and allows the node to perform any cleanup
 // necessary before its requirements are used for instance launching
 func (n *NodeClaim) FinalizeScheduling() {

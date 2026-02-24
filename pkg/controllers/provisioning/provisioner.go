@@ -171,8 +171,11 @@ func (p *Provisioner) Reconcile(ctx context.Context) (result reconciler.Result, 
 		cpuCores := float64(totalCPU.MilliValue()) / 1000.0
 		ratio := memoryGB / cpuCores
 
-		if ratio > 4.0 {
-			nc.RemoveReservedOfferingsByInstanceTypePrefix([]string{"c", "m"})
+		log.FromContext(ctx).WithValues("ratio", ratio).V(1).Info("preferr ratio")
+
+		// TODO: if there are no r types allowed in the nodeclaim, don't do this
+		if ratio > 4.0 { // TODO: actually 5 would be ideal for cost/benefit ratio
+			nc.Requirements.Add(scheduling.NewRequirement("karpenter.k8s.aws/instance-category", corev1.NodeSelectorOpIn, "r"))
 		}
 	}
 
