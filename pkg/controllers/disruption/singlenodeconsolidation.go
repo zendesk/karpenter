@@ -18,7 +18,6 @@ package disruption
 
 import (
 	"context"
-	"fmt"
 	"sort"
 	"strings"
 	"time"
@@ -100,14 +99,14 @@ func (s *SingleNodeConsolidation) ComputeCommands(ctx context.Context, disruptio
 		if cmd.Decision() == NoOpDecision {
 			continue
 		}
-		if _, err = s.validator.Validate(ctx, cmd, consolidationTTL); err != nil {
-			if IsValidationError(err) {
-				reason := getValidationFailureReason(err)
-				cmd.EmitRejectedEvents(s.recorder, reason)
-				return []Command{}, nil
-			}
-			return []Command{}, fmt.Errorf("validating consolidation, %w", err)
-		}
+		//if _, err = s.validator.Validate(ctx, cmd, consolidationTTL); err != nil {
+		//	if IsValidationError(err) {
+		//		reason := getValidationFailureReason(err)
+		//		cmd.EmitRejectedEvents(s.recorder, reason)
+		//		return []Command{}, nil
+		//	}
+		//	return []Command{}, fmt.Errorf("validating consolidation, %w", err)
+		//}
 		return []Command{cmd}, nil
 	}
 

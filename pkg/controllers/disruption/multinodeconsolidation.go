@@ -19,7 +19,6 @@ package disruption
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math"
 	"time"
 
@@ -104,9 +103,9 @@ func (m *MultiNodeConsolidation) ComputeCommands(ctx context.Context, disruption
 
 		// if we find a good command we can stop, keep in sync with checks below
 		if cmd.Decision() != NoOpDecision {
-			if _, err = m.validator.Validate(ctx, cmd, consolidationTTL); err == nil {
-				break
-			}
+			//if _, err = m.validator.Validate(ctx, cmd, consolidationTTL); err == nil {
+			break
+			//}
 		}
 	}
 
@@ -120,14 +119,14 @@ func (m *MultiNodeConsolidation) ComputeCommands(ctx context.Context, disruption
 		return []Command{}, nil
 	}
 
-	if cmd, err = m.validator.Validate(ctx, cmd, consolidationTTL); err != nil {
-		if IsValidationError(err) {
-			reason := getValidationFailureReason(err)
-			cmd.EmitRejectedEvents(m.recorder, reason)
-			return []Command{}, nil
-		}
-		return []Command{}, fmt.Errorf("validating consolidation, %w", err)
-	}
+	//if cmd, err = m.validator.Validate(ctx, cmd, consolidationTTL); err != nil {
+	//	if IsValidationError(err) {
+	//		reason := getValidationFailureReason(err)
+	//		cmd.EmitRejectedEvents(m.recorder, reason)
+	//		return []Command{}, nil
+	//	}
+	//	return []Command{}, fmt.Errorf("validating consolidation, %w", err)
+	//}
 	return []Command{cmd}, nil
 }
 

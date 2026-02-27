@@ -21,8 +21,6 @@ import (
 	"fmt"
 
 	"github.com/awslabs/operatorpkg/option"
-	"sigs.k8s.io/controller-runtime/pkg/log"
-
 	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	disruptionevents "sigs.k8s.io/karpenter/pkg/controllers/disruption/events"
 )
@@ -91,15 +89,15 @@ func (e *Emptiness) ComputeCommands(ctx context.Context, disruptionBudgetMapping
 	cmd := Command{
 		Candidates: empty,
 	}
-	validCmd, err := e.validator.Validate(ctx, cmd, consolidationTTL)
-	if err != nil {
-		if IsValidationError(err) {
-			log.FromContext(ctx).V(1).WithValues(cmd.LogValues()...).Info("abandoning empty node consolidation attempt due to pod churn, command is no longer valid")
-			return []Command{}, nil
-		}
-		return []Command{}, err
-	}
-	return []Command{validCmd}, nil
+	//validCmd, err := e.validator.Validate(ctx, cmd, consolidationTTL)
+	//if err != nil {
+	//	if IsValidationError(err) {
+	//		log.FromContext(ctx).V(1).WithValues(cmd.LogValues()...).Info("abandoning empty node consolidation attempt due to pod churn, command is no longer valid")
+	//		return []Command{}, nil
+	//	}
+	//	return []Command{}, err
+	//}
+	return []Command{cmd}, nil
 }
 
 func (e *Emptiness) Reason() v1.DisruptionReason {
