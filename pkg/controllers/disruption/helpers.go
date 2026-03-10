@@ -116,6 +116,9 @@ func SimulateScheduling(ctx context.Context, kubeClient client.Client, cluster *
 	}
 	pods = append(pods, deletingNodePods...)
 
+	var candidateNodeTypes []string
+	stateNodes, candidateNodeTypes = filterStateNodesByCandidateNodeTypes(stateNodes, candidates)
+
 	var opts []scheduling.Options
 	if options.FromContext(ctx).PreferencePolicy == options.PreferencePolicyIgnore {
 		opts = append(opts, scheduling.IgnorePreferences)
@@ -126,7 +129,7 @@ func SimulateScheduling(ctx context.Context, kubeClient client.Client, cluster *
 	// the DRA allocator should treat the devices they hold as available for reallocation (and re-allocate their claims).
 	deletingPodUIDs := sets.New(lo.Map(append(candidatePods, deletingNodePods...), func(p *corev1.Pod, _ int) types.UID { return p.UID })...)
 	scheduler, err := provisioner.NewScheduler(
-		log.IntoContext(ctx, operatorlogging.NopLogger),
+		context.WithValue(log.IntoContext(ctx, operatorlogging.NopLogger), "filterNodePoolsByStateNodeNodeTypes", candidateNodeTypes),
 		pods,
 		stateNodes,
 		deletingPodUIDs,
@@ -258,7 +261,26 @@ func instanceTypesAreSubset(lhs []*cloudprovider.InstanceType, rhs []*cloudprovi
 	return len(rhsNames.Intersection(lhsNames)) == len(lhsNames)
 }
 
-// GetCandidates returns nodes that appear to be currently deprovisionable based off of their nodePool.
+// speed up computation by only considering nodes that have the same "node-type" label as the candidates
+func filterStateNodesByCandidateNodeTypes(stateNodes []*state.StateNode, candidates []*Candidate) ([]*state.StateNode, []string) {
+	candidateNodeTypes := lo.Uniq(lo.Map(candidates, func(c *Candidate, _ int) string {
+		if c.Node != nil {
+			return c.Node.Labels["node-type"]
+		}
+		return ""
+	}))
+
+	if lo.Contains(candidateNodeTypes, "") { // something was weird, do not filter, even if some had node-type
+		return stateNodes, candidateNodeTypes
+	}
+
+	stateNodes = lo.Filter(stateNodes, func(n *state.StateNode, _ int) bool {
+		return lo.Contains(candidateNodeTypes, n.Labels()["node-type"])
+	})
+	return stateNodes, candidateNodeTypes
+}
+
+// GetCandidates returns nodes that appear to be currently deprovisionable based off of their nodePool
 func GetCandidates(ctx context.Context, cluster *state.Cluster, kubeClient client.Client, recorder events.Recorder, clk clock.Clock,
 	cloudProvider cloudprovider.CloudProvider, shouldDisrupt CandidateFilter, disruptionClass string, queue *Queue,
 ) ([]*Candidate, error) {
