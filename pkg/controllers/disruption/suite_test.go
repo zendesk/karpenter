@@ -1087,7 +1087,7 @@ var _ = Describe("Candidate Filtering", func() {
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(Equal(fmt.Sprintf(`validating pod disruption, pod has "karpenter.sh/do-not-disrupt" annotation (Pod=%s) (Node=%s)`, client.ObjectKeyFromObject(pod), node.Name)))
 		Expect(state.IsPodBlockEvictionError(err)).To(BeTrue())
-		Expect(recorder.DetectedEvent(fmt.Sprintf(`Pod has "karpenter.sh/do-not-disrupt" annotation (Pod=%s)`, client.ObjectKeyFromObject(pod)))).To(BeTrue())
+		Expect(recorder.DetectedEvent(fmt.Sprintf(`Pod has "karpenter.sh/do-not-disrupt" annotation (Pod=%s)`, client.ObjectKeyFromObject(pod)))).To(BeFalse())
 	})
 	It("should not consider candidates that have do-not-disrupt mirror pods scheduled", func() {
 		nodeClaim, node := test.NodeClaimAndNode(v1.NodeClaim{
@@ -1125,7 +1125,7 @@ var _ = Describe("Candidate Filtering", func() {
 		_, err := disruption.NewCandidate(ctx, env.Client, recorder, env.Clock, cluster.DeepCopyNodes()[0], pdbLimits, nodePoolMap, nodePoolInstanceTypeMap, queue, disruption.GracefulDisruptionClass)
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(Equal(fmt.Sprintf(`validating pod disruption, pod has "karpenter.sh/do-not-disrupt" annotation (Pod=%s) (Node=%s)`, client.ObjectKeyFromObject(pod), node.Name)))
-		Expect(recorder.DetectedEvent(fmt.Sprintf(`Pod has "karpenter.sh/do-not-disrupt" annotation (Pod=%s)`, client.ObjectKeyFromObject(pod)))).To(BeTrue())
+		Expect(recorder.DetectedEvent(fmt.Sprintf(`Pod has "karpenter.sh/do-not-disrupt" annotation (Pod=%s)`, client.ObjectKeyFromObject(pod)))).To(BeFalse())
 	})
 	It("should not consider candidates that have do-not-disrupt daemonset pods scheduled", func() {
 		daemonSet := test.DaemonSet()
@@ -1164,7 +1164,7 @@ var _ = Describe("Candidate Filtering", func() {
 		_, err := disruption.NewCandidate(ctx, env.Client, recorder, env.Clock, cluster.DeepCopyNodes()[0], pdbLimits, nodePoolMap, nodePoolInstanceTypeMap, queue, disruption.GracefulDisruptionClass)
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(Equal(fmt.Sprintf(`validating pod disruption, pod has "karpenter.sh/do-not-disrupt" annotation (Pod=%s) (Node=%s)`, client.ObjectKeyFromObject(pod), node.Name)))
-		Expect(recorder.DetectedEvent(fmt.Sprintf(`Pod has "karpenter.sh/do-not-disrupt" annotation (Pod=%s)`, client.ObjectKeyFromObject(pod)))).To(BeTrue())
+		Expect(recorder.DetectedEvent(fmt.Sprintf(`Pod has "karpenter.sh/do-not-disrupt" annotation (Pod=%s)`, client.ObjectKeyFromObject(pod)))).To(BeFalse())
 	})
 	It("should consider candidates that have do-not-disrupt pods scheduled with a terminationGracePeriod set for eventual disruption", func() {
 		nodeClaim, node := test.NodeClaimAndNode(v1.NodeClaim{
@@ -1254,7 +1254,7 @@ var _ = Describe("Candidate Filtering", func() {
 		_, err := disruption.NewCandidate(ctx, env.Client, recorder, env.Clock, cluster.DeepCopyNodes()[0], pdbLimits, nodePoolMap, nodePoolInstanceTypeMap, queue, disruption.GracefulDisruptionClass)
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(Equal(fmt.Sprintf(`validating pod disruption, pod has "karpenter.sh/do-not-disrupt" annotation (Pod=%s) (Node=%s)`, client.ObjectKeyFromObject(pod), node.Name)))
-		Expect(recorder.DetectedEvent(fmt.Sprintf(`Pod has "karpenter.sh/do-not-disrupt" annotation (Pod=%s)`, client.ObjectKeyFromObject(pod)))).To(BeTrue())
+		Expect(recorder.DetectedEvent(fmt.Sprintf(`Pod has "karpenter.sh/do-not-disrupt" annotation (Pod=%s)`, client.ObjectKeyFromObject(pod)))).To(BeFalse())
 	})
 	It("should not consider candidates that have PDB-blocked pods scheduled with a terminationGracePeriod set for graceful disruption", func() {
 		nodeClaim, node := test.NodeClaimAndNode(v1.NodeClaim{
@@ -1318,7 +1318,7 @@ var _ = Describe("Candidate Filtering", func() {
 		_, err := disruption.NewCandidate(ctx, env.Client, recorder, env.Clock, cluster.DeepCopyNodes()[0], pdbLimits, nodePoolMap, nodePoolInstanceTypeMap, queue, disruption.EventualDisruptionClass)
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(Equal(fmt.Sprintf(`validating pod disruption, pod has "karpenter.sh/do-not-disrupt" annotation (Pod=%s) (Node=%s)`, client.ObjectKeyFromObject(pod), node.Name)))
-		Expect(recorder.DetectedEvent(fmt.Sprintf(`Pod has "karpenter.sh/do-not-disrupt" annotation (Pod=%s)`, client.ObjectKeyFromObject(pod)))).To(BeTrue())
+		Expect(recorder.DetectedEvent(fmt.Sprintf(`Pod has "karpenter.sh/do-not-disrupt" annotation (Pod=%s)`, client.ObjectKeyFromObject(pod)))).To(BeFalse())
 	})
 	It("should not consider candidates that have PDB-blocked pods scheduled without a terminationGracePeriod set for eventual disruption", func() {
 		nodeClaim, node := test.NodeClaimAndNode(v1.NodeClaim{
@@ -1444,7 +1444,7 @@ var _ = Describe("Candidate Filtering", func() {
 		_, err := disruption.NewCandidate(ctx, env.Client, recorder, env.Clock, cluster.DeepCopyNodes()[0], pdbLimits, nodePoolMap, nodePoolInstanceTypeMap, queue, disruption.GracefulDisruptionClass)
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(Equal(fmt.Sprintf(`validating node for disruption, disruption is blocked through the "karpenter.sh/do-not-disrupt" annotation (Node=%s)`, node.Name)))
-		Expect(recorder.DetectedEvent(`Disruption is blocked through the "karpenter.sh/do-not-disrupt" annotation`)).To(BeTrue())
+		Expect(recorder.DetectedEvent(`Disruption is blocked through the "karpenter.sh/do-not-disrupt" annotation`)).To(BeFalse())
 	})
 	It("should not consider candidates that have multiple PDBs on the same pod", func() {
 		nodeClaim, node := test.NodeClaimAndNode(v1.NodeClaim{
@@ -1654,7 +1654,7 @@ var _ = Describe("Candidate Filtering", func() {
 		_, err = disruption.NewCandidate(ctx, env.Client, recorder, env.Clock, cluster.DeepCopyNodes()[0], pdbLimits, nodePoolMap, nodePoolInstanceTypeMap, queue, disruption.GracefulDisruptionClass)
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(Equal(fmt.Sprintf(`validating pod disruption, pod has "karpenter.sh/do-not-disrupt" annotation (Pod=%s) (Node=%s)`, client.ObjectKeyFromObject(pod), node.Name)))
-		Expect(recorder.DetectedEvent(fmt.Sprintf(`Pod has "karpenter.sh/do-not-disrupt" annotation (Pod=%s)`, client.ObjectKeyFromObject(pod)))).To(BeTrue())
+		Expect(recorder.DetectedEvent(fmt.Sprintf(`Pod has "karpenter.sh/do-not-disrupt" annotation (Pod=%s)`, client.ObjectKeyFromObject(pod)))).To(BeFalse())
 	})
 	It("should not consider candidates that have fully blocking PDBs without a terminationGracePeriod set for graceful disruption", func() {
 		nodeClaim, node := test.NodeClaimAndNode(v1.NodeClaim{
