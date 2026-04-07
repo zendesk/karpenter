@@ -48,7 +48,6 @@ import (
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 	"sigs.k8s.io/karpenter/pkg/utils/pod"
 	"sigs.k8s.io/karpenter/pkg/utils/resources"
-	"strings"
 )
 
 type ReservedOfferingMode int
@@ -582,12 +581,10 @@ func (s *Scheduler) addToInflightNode(ctx context.Context, pod *corev1.Pod) erro
 			return false
 		}
 
-		itypes := lo.Map(updatedInstanceTypes, func(c *cloudprovider.InstanceType, _ int) string { return c.Name })
 		fmt.Printf(
-			"addToInflightNode unable to add pod %s/%s to existing %s -- %v\n",
+			"addToInflightNode unable to add pod %s/%s to existing %s\n",
 			pod.Namespace, pod.Name,
-			strings.Split(err.Error(), "(")[0], // errors without all the detail spam
-			itypes,
+			err.Error(), // errors without all the detail spam
 		)
 
 		return true

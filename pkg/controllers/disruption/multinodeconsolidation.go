@@ -138,6 +138,7 @@ func (m *MultiNodeConsolidation) firstNConsolidationOption(ctx context.Context, 
 	for min <= max {
 		mid := (min + max) / 2
 		candidatesToConsolidate := candidates[0 : mid+1]
+		fmt.Println("multi checking candidates", lo.Map(candidatesToConsolidate, func(c *Candidate, _ int) string { return c.Name() }))
 
 		// Pass the timeout context to ensure sub-operations can be canceled
 		cmd, err := m.computeConsolidation(timeoutCtx, candidatesToConsolidate...)
