@@ -142,41 +142,69 @@ func (p *Provisioner) Reconcile(ctx context.Context) (result reconciler.Result, 
 	if len(results.NewNodeClaims) == 0 {
 		return reconciler.Result{RequeueAfter: singleton.RequeueImmediately}, nil
 	}
-	p.forceRTypesForRPods(ctx, results.NewNodeClaims)
+	p.forceMemoryTypesForMemoryPods(ctx, results.NewNodeClaims)
 	if _, err = p.CreateNodeClaims(ctx, results.NewNodeClaims, WithReason(metrics.ProvisionedReason), RecordPodNomination); err != nil {
 		return reconciler.Result{}, err
 	}
 	return reconciler.Result{RequeueAfter: singleton.RequeueImmediately}, nil
 }
 
-func (p *Provisioner) forceRTypesForRPods(ctx context.Context, nodeClaims []*scheduler.NodeClaim) {
+// memory optimized instance-type families, ordered from most to least memory per cpu, with the requested
+// memory:cpu ratio (GB:core) at which their extra cost outweighs the next cheaper family's wasted cpu.
+// Break-even numbers are derived from on-demand us-east-1 pricing (m7g/r7g/x8g.xlarge, Aug 2026):
+// m7g 4 vcpu/16GiB @ $0.1632/hr (4:1, $0.0408/vcpu-hr), r7g 4 vcpu/32GiB @ $0.2142/hr (8:1, $0.05355/vcpu-hr),
+// x8g 4 vcpu/64GiB @ $0.3908/hr (16:1, $0.0977/vcpu-hr). Note there is no x7g family, so x8g (Graviton4) is
+// used as the memory-optimized tier even though m/r are gen7 (Graviton3).
+var memoryOptimizedFamilies = []struct {
+	prefix   string
+	minRatio float64
+}{
+	// break-even vs r7g: (0.0977/0.05355) * 8 =~ 14.6
+	{prefix: "x", minRatio: 14.6},
+	// break-even vs m7g: (0.05355/0.0408) * 4 =~ 5.25
+	{prefix: "r", minRatio: 5.25},
+}
+
+func (p *Provisioner) forceMemoryTypesForMemoryPods(ctx context.Context, nodeClaims []*scheduler.NodeClaim) {
 	for _, nc := range nodeClaims {
-		// check that both types are still possible
-		rTypes, nonRTypes := lo.FilterReject(nc.InstanceTypeOptions, func(it *cloudprovider.InstanceType, _ int) bool {
-			return strings.HasPrefix(it.Name, "r")
-		})
-		if len(nonRTypes) == 0 || len(rTypes) == 0 {
+		ratio, ok := memoryToCPURatio(nc.Pods)
+		if !ok {
 			continue
 		}
+		for _, family := range memoryOptimizedFamilies {
+			// forcing makes sense ?
+			if ratio < family.minRatio {
+				continue
+			}
 
-		// calculate the memory:cpu ratio
-		requests := resources.RequestsForPods(nc.Pods...)
-		requestedMemory := requests[corev1.ResourceMemory]
-		requestedCPU := requests[corev1.ResourceCPU]
-		if requestedCPU.IsZero() {
-			continue
-		}
-		memoryGB := float64(requestedMemory.Value()) / (1024 * 1024 * 1024)
-		cpuCores := float64(requestedCPU.MilliValue()) / 1000.0
-		ratio := memoryGB / cpuCores
+			// forcing is possible and needed ?
+			matching, others := lo.FilterReject(nc.InstanceTypeOptions, func(it *cloudprovider.InstanceType, _ int) bool {
+				return strings.HasPrefix(it.Name, family.prefix)
+			})
+			if len(matching) == 0 || len(others) == 0 {
+				continue
+			}
 
-		// force r type if it makes sense
-		if ratio < 5.0 { // m nodes have a 4:1 ratio, and r nodes cost 20% more, so it is only worth it when we reach >=5:1
-			continue
+			// force!
+			log.FromContext(ctx).WithValues("ratio", ratio, "family", family.prefix).
+				V(1).Info("forcing memory optimized instance-types because of high memory ratio")
+			nc.InstanceTypeOptions = matching
+			break
 		}
-		log.FromContext(ctx).WithValues("ratio", ratio).V(1).Info("forcing r instance-types because of high memory ratio")
-		nc.InstanceTypeOptions = rTypes
 	}
+}
+
+// memoryToCPURatio returns the requested memory (GB) per cpu (core), false when nothing requests cpu
+func memoryToCPURatio(pods []*corev1.Pod) (float64, bool) {
+	requests := resources.RequestsForPods(pods...)
+	requestedMemory := requests[corev1.ResourceMemory]
+	requestedCPU := requests[corev1.ResourceCPU]
+	if requestedCPU.IsZero() {
+		return 0, false
+	}
+	memoryGB := float64(requestedMemory.Value()) / (1024 * 1024 * 1024)
+	cpuCores := float64(requestedCPU.MilliValue()) / 1000.0
+	return memoryGB / cpuCores, true
 }
 
 // CreateNodeClaims launches nodes passed into the function in parallel. It returns a slice of the successfully created node
