@@ -354,7 +354,7 @@ func (p *Provisioner) NewScheduler(
 		}
 		return np.DeletionTimestamp.IsZero()
 	})
-	if nodeTypes, ok := ctx.Value("filterNodePoolsByStateNodeNodeTypes").([]string); ok {
+	if nodeTypes, ok := ctx.Value(FilterNodePoolsByNodeTypesKey).([]string); ok {
 		nodePools = filterNodePoolsByStateNodeNodeTypes(nodePools, nodeTypes)
 	}
 	if len(nodePools) == 0 {
@@ -434,6 +434,11 @@ func (p *Provisioner) NewScheduler(
 }
 
 // speed up computation by only considering pools that have the same "node-type" label as the nodes
+// FilterNodePoolsByNodeTypesKey passes candidate node-types from disruption candidate selection to nodepool filtering.
+type filterNodePoolsByNodeTypesKey struct{}
+
+var FilterNodePoolsByNodeTypesKey = filterNodePoolsByNodeTypesKey{}
+
 func filterNodePoolsByStateNodeNodeTypes(nodePools []*v1.NodePool, candidateNodeTypes []string) []*v1.NodePool {
 	if lo.Contains(candidateNodeTypes, "") { // something was weird, do not filter
 		return nodePools

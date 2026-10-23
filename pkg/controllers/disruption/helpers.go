@@ -129,7 +129,7 @@ func SimulateScheduling(ctx context.Context, kubeClient client.Client, cluster *
 	// the DRA allocator should treat the devices they hold as available for reallocation (and re-allocate their claims).
 	deletingPodUIDs := sets.New(lo.Map(append(candidatePods, deletingNodePods...), func(p *corev1.Pod, _ int) types.UID { return p.UID })...)
 	scheduler, err := provisioner.NewScheduler(
-		context.WithValue(log.IntoContext(ctx, operatorlogging.NopLogger), "filterNodePoolsByStateNodeNodeTypes", candidateNodeTypes),
+		context.WithValue(log.IntoContext(ctx, operatorlogging.NopLogger), provisioning.FilterNodePoolsByNodeTypesKey, candidateNodeTypes),
 		pods,
 		stateNodes,
 		deletingPodUIDs,
